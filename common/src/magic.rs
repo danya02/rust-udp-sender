@@ -1,20 +1,10 @@
 use crate::{messages::Message, DecodeError};
+use sha2::Digest;
 
 /// Convenience functions for working with magic over the network.
 
 /// The version of the protocol. This must match on both sides of the connection.
 static VERSION: u16 = 1;
-
-/// Make a prefix that identifies a peer on the network.
-/// Includes the name of the peer and the version of the protocol.
-fn make_peer_magic(name: &str) -> Vec<u8> {
-    let mut magic = Vec::new();
-    magic.extend("RustUDPs".as_bytes());
-    magic.extend(name.as_bytes());
-    magic.push(0);
-    magic.extend(VERSION.to_be_bytes().iter());
-    magic
-}
 
 /// Errors that can occur when parsing a magic prefix.
 #[derive(Debug)]
@@ -27,6 +17,15 @@ pub enum MagicError {
     /// The value included is their version.
     /// You might want a warning upon seeing this.
     InvalidVersion(u16),
+
+    /// There is a length mismatch.
+    /// This probably means that there is network corruption or truncation. Consider using a smaller packet size.
+    /// The first value is the expected length, the second is the actual length.
+    LengthMismatch(u16, u16),
+
+    /// There is a hash mismatch.
+    /// This probably means that there is network corruption.
+    HashMismatch,
 
     /// The magic prefix was valid, but the packet was otherwise invalid.
     DecodeError(DecodeError),
@@ -56,13 +55,46 @@ pub fn parse_magic(data: &[u8]) -> Result<(String, &[u8]), MagicError> {
     if version != VERSION {
         return Err(MagicError::InvalidVersion(version));
     }
+    // The next 2 bytes are the length
+    let (length, data) = data.split_at(2);
+    let length = u16::from_be_bytes([length[0], length[1]]);
+    // The next 32 bytes are the hash
+    let (hash, data) = data.split_at(32);
+    // The rest is the data
+    if data.len() as u16 != length {
+        return Err(MagicError::LengthMismatch(length, data.len() as u16));
+    }
+
+    // Hash the data
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(data);
+    let hash2 = hasher.finalize();
+    if hash != hash2.as_slice() {
+        return Err(MagicError::HashMismatch);
+    }
+
     Ok((name, data))
 }
 
 /// Make a packet with the magic prefix from the given message
 pub fn make_magic_packet(name: &str, data: &Message) -> Vec<u8> {
-    let mut packet = make_peer_magic(name);
+
     let data = data.serialize();
+
+    let mut packet = Vec::new();
+    // Magic prefix
+    packet.extend("RustUDPs".as_bytes());
+    packet.extend(name.as_bytes());
+    packet.push(0);
+    packet.extend(VERSION.to_be_bytes().iter());
+    // Length
+    packet.extend((data.len() as u16).to_be_bytes().iter());
+    // Hash
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(&data);
+    let hash = hasher.finalize();
+    packet.extend(hash.as_slice());
+    // Data
     packet.extend(data);
     packet
 }

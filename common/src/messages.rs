@@ -35,6 +35,7 @@ pub enum Message {
     JoinResponse(JoinReason),
 
 
+
     /// A ping request. Whoever sends this expects a `Pong` in response.
     Ping {
         /// Random number to identify this ping.
