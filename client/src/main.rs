@@ -1,8 +1,11 @@
 mod args;
+use std::net::SocketAddr;
+
 use args::Args;
 use clap::Parser;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
     println!("{:?}", args);
 
@@ -13,25 +16,13 @@ fn main() {
 
     eprintln!("Starting client as {}", my_name);
 
-    // Create a socket
-    let socket = match std::net::UdpSocket::bind(format!("{}:{}", args.ip, args.port)) {
-        Ok(socket) => socket,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
-        }
-    };
+    // Create a listener
+    let addresses = vec![ SocketAddr::new(args.ip.parse().unwrap(), args.port) ];
+    let mut listener = common::networking::make_listener(addresses);
 
-    // Receive a packet
-    let mut buf = [0; 1024];
-    let (amt, src) = match socket.recv_from(&mut buf) {
-        Ok((amt, src)) => (amt, src),
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
-        }
-    };
-    // Print the packet
-    println!("Received {} bytes from {}", amt, src);
-
+    // Loop over packets
+    loop {
+        let (src, name, message) = listener.recv().await.unwrap();
+        println!("Received packet from {} ({}): {:?}", src, name, message);
+    }
 }

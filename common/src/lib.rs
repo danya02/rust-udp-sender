@@ -1,5 +1,8 @@
-mod magic;
-mod messages;
+pub mod magic;
+pub mod messages;
+pub mod networking;
+
+type DecodeError = rmp_serde::decode::Error;
 
 /// Make a random name for an object.
 /// 

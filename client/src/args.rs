@@ -13,4 +13,9 @@ pub(crate) struct Args {
     /// Name of this client. Will show up on server. If unset, generated randomly.
     #[clap(short, long)]
     pub name: Option<String>,
+
+    /// Name of the server to connect to. If unset, will connect to the first server that responds.
+    #[clap(short, long)]
+    pub server_name: Option<String>,
+
 }

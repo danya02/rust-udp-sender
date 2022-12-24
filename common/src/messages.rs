@@ -2,6 +2,8 @@
 
 use serde::{Serialize, Deserialize};
 
+use crate::DecodeError;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Message {
@@ -17,9 +19,7 @@ pub enum Message {
     /// A request to join a server.
     /// 
     /// The IP address is implied by the UDP packet.
-    /// The port is used by the server to talk back to the client.
     JoinQuery {
-        port: u16,
     },
 
     /// A response to a `JoinQuery`.
@@ -40,4 +40,16 @@ pub enum Message {
         /// The nonce from the `Ping` that this is a response to.
         nonce: u64,
     },
+}
+
+impl Message {
+    /// Serialize a message to a byte array.
+    pub fn serialize(&self) -> Vec<u8> {
+        rmp_serde::to_vec(self).unwrap()
+    }
+
+    /// Deserialize a message from a byte array.
+    pub fn deserialize(data: &[u8]) -> Result<Self, DecodeError> {
+        rmp_serde::from_slice(data)
+    }
 }
