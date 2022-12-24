@@ -71,6 +71,6 @@ pub fn make_magic_packet(name: &str, data: &Message) -> Vec<u8> {
 /// Returns the name of the peer and the message
 pub fn parse_magic_packet(data: &[u8]) -> Result<(String, Message), MagicError> {
     let (name, data) = parse_magic(data)?;
-    let message = Message::deserialize(data).map_err(|e| MagicError::DecodeError(e))?;
+    let message = Message::deserialize(data).map_err(MagicError::DecodeError)?;
     Ok((name, message))
 }

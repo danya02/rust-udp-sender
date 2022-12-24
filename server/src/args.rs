@@ -4,7 +4,7 @@ use clap::Parser;
 pub(crate) struct Args {
     /// Port to transmit on (all the clients must listen on this)
     #[clap(short, long, default_value_t = 1337)]
-    pub port: u16,
+    pub send_port: u16,
 
     /// Port to listen on (if unset, will listen on the same port as transmit)
     #[clap(short, long)]

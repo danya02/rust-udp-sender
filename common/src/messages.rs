@@ -4,7 +4,15 @@ use serde::{Serialize, Deserialize};
 
 use crate::DecodeError;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub enum JoinReason {
+    /// Server accepted the client
+    Accepted,
+    /// Wrong client name
+    WrongName,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum Message {
     /// Broadcasted by a server to announce its presence.
@@ -16,17 +24,15 @@ pub enum Message {
         port: u16,
     },
 
-    /// A request to join a server.
+    /// A request by the client to join a server.
     /// 
     /// The IP address is implied by the UDP packet.
+    /// The port is implied: it is the port that the server used to reach the client.
     JoinQuery {
     },
 
     /// A response to a `JoinQuery`.
-    JoinResponse {
-        /// Whether the server has accepted the client.
-        accepted: bool,
-    },
+    JoinResponse(JoinReason),
 
 
     /// A ping request. Whoever sends this expects a `Pong` in response.
