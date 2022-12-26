@@ -4,4 +4,5 @@ members = [
     "client",
     "common",
     "server",
+    "hasher",
 ]
