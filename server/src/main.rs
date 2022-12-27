@@ -1,8 +1,9 @@
 mod args;
 mod broadcast_presence;
 mod files;
+mod broadcaster;
 
-use std::{net::SocketAddr, path::PathBuf};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use args::Args;
 use clap::Parser;
@@ -10,6 +11,7 @@ use clap::Parser;
 use hasher::walk;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use tokio::time::interval;
 
 use crate::files::run_transmissions;
 
@@ -46,9 +48,11 @@ async fn main() {
     // Create a listener
     let listener = common::networking::make_listener(listen_addrs.clone(), &my_name);
 
+    // Create a broadcaster
+    let broadcaster = crate::broadcaster::make_broadcaster(broadcast_addrs.clone(), &my_name, 10000, interval(Duration::from_secs(1)));
+
     // Create a thread to broadcast our presence
-    let broadcast_addrs_out = broadcast_addrs.clone();
-    broadcast_presence::broadcast_presence(broadcast_addrs_out, &my_name, listen_port);
+    broadcast_presence::broadcast_presence(broadcaster.clone(), listen_port);
 
     // Make a listener of JoinQuery messages
     let (mut join_query_listener, listener) = common::channels::filter_branch_pred(listener,
@@ -108,9 +112,7 @@ async fn main() {
 
     let broadcast_addrs_out = broadcast_addrs.clone();
     let my_name_out = my_name.clone();
-    tokio::spawn(async move {
-        run_transmissions(listener, my_name_out, file_listing_fragments, broadcast_addrs_out).await;
-    });
+    tokio::spawn(run_transmissions(listener, file_listing_fragments, broadcaster.clone()));
 
 
     // Loop over packets

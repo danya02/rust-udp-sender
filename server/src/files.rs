@@ -31,9 +31,8 @@ pub fn hashlist_into_file_listing(hashlist: hashlist::HashList) -> Vec<FileListi
 
 pub async fn run_transmissions(
     mut transmission_listener: MessageReceiver,
-    my_name: String,
     directory_entries: Vec<FileListingFragment>,
-    broadcast_addresses: Vec<std::net::SocketAddr>,
+    broadcaster: crate::broadcaster::MessageSender,
 ) {
     // Transmit all the directory entries over a period of 5 seconds
     // Also listen for file requests and transmit those out of order
@@ -43,9 +42,8 @@ pub async fn run_transmissions(
     }, false);
 
     let single_entry_duration = std::time::Duration::from_secs(5) / directory_entries.len() as u32;
-    let my_name_out = my_name.clone();
-    let broadcast_addresses_out = broadcast_addresses.clone();
     let directory_entries_out = directory_entries.clone();
+    let broadcaster_out = broadcaster.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(single_entry_duration);
         let mut current_index = 0;
@@ -77,15 +75,14 @@ pub async fn run_transmissions(
                 },
             };
             debug!("Sending message: {:?}", message);
-            broadcast_message(&broadcast_addresses_out, &my_name_out, &message).await.unwrap();
+            broadcaster_out.send(message).await.unwrap();
         }
     });
 
     // Listen for file requests and transmit those out of order
     debug!("Starting file chunk reply thread");
-    let my_name_out = my_name.clone();
-    let broadcast_addresses_out = broadcast_addresses.clone();
     let directory_entries_out = directory_entries.clone();
+    let broadcaster_out = broadcaster.clone();
 
     let (mut file_chunk_listener, listener) = common::channels::filter_branch_pred(listener, |msg|{
         matches!(msg.2, common::messages::Message::FileChunkRequest { .. })
@@ -98,8 +95,9 @@ pub async fn run_transmissions(
                     Message::FileChunkRequest { idx, chunk: chunk_idx } => {
                         // If the idx is out of bounds, send the last entry
                         if idx > directory_entries_out.len().try_into().unwrap() {
-                            broadcast_message(&broadcast_addresses_out, &my_name_out,
-                                &Message::FileListing(directory_entries_out.last().unwrap().clone())).await.expect("Failed to send file listing entry");
+                            broadcaster.send(
+                                Message::FileListing(directory_entries_out.last().unwrap().clone())
+                            ).await.expect("Failed to send file listing entry");
                             continue;
                         }
                         let entry = &directory_entries_out[idx as usize];
@@ -113,7 +111,7 @@ pub async fn run_transmissions(
                             chunk: chunk_idx,
                             data: data_piece,
                         });
-                        broadcast_message(&broadcast_addresses_out, &my_name_out, &message).await;
+                        broadcaster.send(message).await.unwrap();
 
                     },
                     _ => unreachable!(),
