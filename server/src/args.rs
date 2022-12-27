@@ -17,4 +17,14 @@ pub(crate) struct Args {
     /// Name of this server. Will show up on clients. If unset, generated randomly.
     #[clap(short, long)]
     pub name: Option<String>,
+
+    /// Name of the directory to serve. If unset, will serve the current directory.
+    #[clap(short, long, default_value = ".")]
+    pub dir: String,
+
+    /// Name of the file containing the hashlist.
+    /// If unset, will store the hashes in memory:
+    /// consider creating a hashlist file if you have a lot of files.
+    #[clap(long, short_alias = 'f')]
+    pub hashlist: Option<String>,
 }

@@ -1,13 +1,17 @@
 mod args;
 mod broadcast_presence;
+mod files;
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
 use args::Args;
 use clap::Parser;
 
+use hasher::walk;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+
+use crate::files::run_transmissions;
 
 
 #[tokio::main]
@@ -43,7 +47,8 @@ async fn main() {
     let listener = common::networking::make_listener(listen_addrs.clone(), &my_name);
 
     // Create a thread to broadcast our presence
-    let _broadcast_presence = broadcast_presence::broadcast_presence(broadcast_addrs, &my_name, listen_port);
+    let broadcast_addrs_out = broadcast_addrs.clone();
+    broadcast_presence::broadcast_presence(broadcast_addrs_out, &my_name, listen_port);
 
     // Make a listener of JoinQuery messages
     let (mut join_query_listener, listener) = common::channels::filter_branch_pred(listener,
@@ -79,10 +84,38 @@ async fn main() {
     tokio::spawn(async move {
         common::ping_reply::reply_to_pings(ping_listener, my_name_out, send_port).await;
     });
+
  
+    // Construct a list of file listing fragments
+    let dir: PathBuf = args.dir.parse().unwrap();
+    let file_listing_fragments;
+    if let Some(hashlist) = args.hashlist {
+        info!("Loading hashlist from {}", hashlist);
+        let hashlist: PathBuf = hashlist.parse().unwrap();
+        let hashlist = rmp_serde::from_read(std::fs::File::open(hashlist).unwrap()).unwrap();
+        file_listing_fragments = files::hashlist_into_file_listing(hashlist);
+        debug!("File listing collected, has {} fragments", file_listing_fragments.len());
+    }
+    else {
+        warn!("Building in-memory hashlist, this may take a while");
+        let (sender, handle) = walk::collect_entries();
+        let dir2 = dir.clone();
+        walk::walk_directory_and_hash(dir, dir2, sender).await;
+        let hashlist = handle.await.expect("Failed to get hashlist from thread");
+        file_listing_fragments = files::hashlist_into_file_listing(hashlist);
+        debug!("File listing collected, has {} fragments", file_listing_fragments.len());
+    }
+
+    let broadcast_addrs_out = broadcast_addrs.clone();
+    let my_name_out = my_name.clone();
+    tokio::spawn(async move {
+        run_transmissions(listener, my_name_out, file_listing_fragments, broadcast_addrs_out).await;
+    });
+
+
     // Loop over packets
     loop {
-        let (src, name, message) = listener.recv().await.unwrap();
-        println!("Received unknown packet from {} ({}): {:?}", src, name, message);
+//        let (src, name, message) = listener.recv().await.unwrap();
+//        println!("Received unknown packet from {} ({}): {:?}", src, name, message);
     }
 }

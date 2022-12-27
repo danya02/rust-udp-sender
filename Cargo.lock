@@ -677,7 +677,10 @@ dependencies = [
  "clap 4.0.32",
  "common",
  "env_logger",
+ "hasher",
  "log",
+ "rmp-serde",
+ "serde",
  "sha2",
  "tokio",
 ]

@@ -58,8 +58,9 @@ pub fn parse_magic(data: &[u8]) -> Result<(String, &[u8]), MagicError> {
     // The next 2 bytes are the length
     let (length, data) = data.split_at(2);
     let length = u16::from_be_bytes([length[0], length[1]]);
-    // The next 32 bytes are the hash
-    let (hash, data) = data.split_at(32);
+    // The next bytes are the hash
+    let hash_length = std::mem::size_of::<crate::HashType>();
+    let (hash, data) = data.split_at(hash_length);
     // The rest is the data
     if data.len() as u16 != length {
         return Err(MagicError::LengthMismatch(length, data.len() as u16));

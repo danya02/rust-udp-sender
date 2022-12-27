@@ -1,6 +1,9 @@
 mod args;
 mod server_discover;
 mod pong_listener;
+mod server_state;
+mod server_state_initialization;
+mod comms;
 
 use std::net::SocketAddr;
 
@@ -25,6 +28,7 @@ async fn main() {
 
     eprintln!("Starting client as {}", my_name);
 
+
     // Create a listener
     let addresses = vec![ SocketAddr::new(args.ip.parse().unwrap(), args.port) ];
     let mut listener = common::networking::make_listener(addresses, &my_name);
@@ -32,6 +36,8 @@ async fn main() {
     // Discover the server
     let server_addr = server_discover::discover_server(&mut listener, &my_name, args.server_name.as_deref()).await.unwrap();
     let server_port = server_addr.port();
+
+    let server_comm = comms::ServerCommunicator::new(server_addr, my_name.clone());
 
     // Respond to pings
     let (ping_listener, listener) = common::channels::filter_branch_pred(listener,
@@ -56,9 +62,15 @@ async fn main() {
     let my_name_out = my_name.clone();
     let ping_interval = std::time::Duration::from_secs(1);
     let ping_interval = tokio::time::interval(ping_interval);
+    let comm = server_comm.clone();
     tokio::spawn(async move {
-        pong_listener::pong_listener(pong_listener, ping_interval, 5, server_addr, my_name_out).await;
+        pong_listener::pong_listener(pong_listener, ping_interval, 5, comm).await;
     });
+
+
+    // We now need to get the initial server state.
+    let state = server_state_initialization::initialize_state(&mut listener, server_comm.clone()).await;
+
 
     // Loop over packets
     loop {

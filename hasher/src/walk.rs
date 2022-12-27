@@ -16,7 +16,7 @@ use log::{debug, error, info, trace, warn};
 
 /// Create a thread that listens for messages containing directory entries,
 /// stores them, and returns when the list is complete.
-pub(crate) fn collect_entries() -> (Sender<FileHashItem>, JoinHandle<HashList>) {
+pub fn collect_entries() -> (Sender<FileHashItem>, JoinHandle<HashList>) {
     let (sender, mut receiver) = tokio::sync::mpsc::channel(100);
     let handle = tokio::spawn(async move {
         let mut files = Vec::new();
@@ -32,7 +32,7 @@ pub(crate) fn collect_entries() -> (Sender<FileHashItem>, JoinHandle<HashList>) 
 }
 
 /// Get the Sha256 hash of a file.
-pub(crate) async fn get_file_hash(path: impl AsRef<Path>) -> [u8; 32] {
+pub async fn get_file_hash(path: impl AsRef<Path>) -> [u8; 32] {
     let mut file = tokio::fs::File::open(path).await.expect("Unable to open file");
     let mut hasher = sha2::Sha256::new();
     let mut buf = [0; 1024];
@@ -57,7 +57,7 @@ pub(crate) async fn get_file_hash(path: impl AsRef<Path>) -> [u8; 32] {
 /// 
 /// For the initial invocation, both the `path` and the `base` should be the same.
 #[async_recursion]
-pub(crate) async fn walk_directory_and_hash(
+pub async fn walk_directory_and_hash(
     path: PathBuf,
     base: PathBuf,
     sender: Sender<FileHashItem>,

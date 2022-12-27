@@ -5,10 +5,12 @@ use common::{messages::Message, MessageReceiver, networking::send_message};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use crate::comms::ServerCommunicator;
+
 
 /// Periodically send out pings to the server, and listen for pongs.
 /// If the number of missed pongs exceeds the threshold, the program will exit.
-pub(crate) async fn pong_listener(mut pong_listener: MessageReceiver, mut ping_interval: tokio::time::Interval, ping_threshold: u32, addr: SocketAddr, my_name: String) {
+pub(crate) async fn pong_listener(mut pong_listener: MessageReceiver, mut ping_interval: tokio::time::Interval, ping_threshold: u32, comm: ServerCommunicator) {
     let mut missed_pings = 0;
     loop {
         tokio::select! {
@@ -26,8 +28,8 @@ pub(crate) async fn pong_listener(mut pong_listener: MessageReceiver, mut ping_i
 
                 let nonce = rand::random();
                 let message = Message::Ping{nonce};
-                send_message(addr, &my_name, &message).await.ok();
-                debug!("Sent ping to {} with nonce {}", addr, nonce);
+                comm.send_message(&message).await;
+                debug!("Sent ping with nonce {}", nonce);
             }
             Some((src, name, message)) = pong_listener.recv() => {
                 // If we receive a pong, reset the missed pings counter.
