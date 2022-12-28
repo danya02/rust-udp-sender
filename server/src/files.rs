@@ -22,7 +22,7 @@ pub fn hashlist_into_file_listing(hashlist: hashlist::HashList) -> Vec<FileListi
             path: path.to_str().unwrap().to_string(),
             hash: hash,
             size: item.size,
-            chunk_size: 1024,
+            chunk_size: 512,
         };
         file_listing.push(file_listing_fragment);
     }
@@ -33,6 +33,7 @@ pub async fn run_transmissions(
     mut transmission_listener: MessageReceiver,
     directory_entries: Vec<FileListingFragment>,
     broadcaster: crate::broadcaster::MessageSender,
+    base: PathBuf,
 ) {
     // Transmit all the directory entries over a period of 5 seconds
     // Also listen for file requests and transmit those out of order
@@ -62,7 +63,7 @@ pub async fn run_transmissions(
                 Some((_, _, message)) = file_listing_request_listener.recv() => {
                     // Got a request for a file listing entry
                     let message = match message {
-                        common::messages::Message::FileListingRequest(idx) => {
+                        common::messages::Message::FileListingRequest{idx} => {
                             // If the idx is out of bounds, just send the last entry
                             debug!("Got request for file listing entry: {}", idx);
                             let idx = idx.min(directory_entries_out.len() as u32 - 1);
@@ -105,7 +106,8 @@ pub async fn run_transmissions(
                         let chunk_count = (entry.size + chunk_size - 1) / chunk_size;
                         // If the chunk_idx is out of bounds, send the last chunk
                         let chunk_idx = chunk_idx.min(chunk_count - 1);
-                        let data_piece = common::filesystem::read_chunk(&PathBuf::from_str(&entry.path).expect("Could not parse a path string?!"), chunk_size, chunk_idx).await.expect("Failed to read piece of file");
+                        let path = base.join(&entry.path);
+                        let data_piece = common::filesystem::read_chunk(&path, chunk_size, chunk_idx).await.expect("Failed to read piece of file");
                         let message = Message::FileChunk ( FileChunkData{
                             idx,
                             chunk: chunk_idx,

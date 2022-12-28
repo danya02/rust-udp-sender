@@ -5,6 +5,9 @@ use std::net::SocketAddr;
 use common::messages::Message;
 use tokio::{sync::mpsc, select};
 
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 
 pub type MessageSender = mpsc::Sender<Message>;
 
@@ -24,6 +27,7 @@ pub fn make_broadcaster(addrs: Vec<SocketAddr>, name: &str, how_many: usize, mut
                         common::networking::broadcast_message(&addrs, &name, &message).await.unwrap();
                     } else {
                         per_time.tick().await; // Rate limiting
+                        trace!("Rate limiting");
                         messages_sent_this_period = 0;
                     }
                 },

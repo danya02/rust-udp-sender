@@ -3,6 +3,10 @@
 use std::path::PathBuf;
 use tokio::{fs, io::{AsyncSeekExt, AsyncReadExt, AsyncWriteExt}};
 
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
+
 /// Ensure that a file with the given path exists and has the given length.
 pub async fn allocate(path: &PathBuf, length: u64) -> Result<(), std::io::Error> {
     // First ensure that the directory exists
@@ -22,6 +26,7 @@ pub async fn allocate(path: &PathBuf, length: u64) -> Result<(), std::io::Error>
 /// The chunk is specified by its number, as well as the chunk size.
 /// The chunk number is zero-indexed.
 pub async fn read_chunk(path: &PathBuf, chunk_size: u64, chunk_number: u64) -> Result<Vec<u8>, std::io::Error> {
+    debug!("Reading chunk {} of file {:?}", chunk_number, path);
     let mut file = fs::OpenOptions::new()
         .read(true)
         .open(path)

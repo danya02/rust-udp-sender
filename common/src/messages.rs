@@ -12,6 +12,12 @@ pub enum JoinReason {
     WrongName,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub enum DisconnectReason {
+    /// All downloads are complete
+    Done,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum Message {
@@ -55,7 +61,9 @@ pub enum Message {
     /// A request by the client to repeat sending a `FileListingFragment`.
     /// The value is the index of the fragment to repeat.
     /// If the index is out of range, the server can send any of the fragments.
-    FileListingRequest(u32),
+    FileListingRequest{
+        idx: u32,
+    },
 
     /// A request to retrieve a chunk of a file.
     /// The server responds with a `FileChunk` message (probably a broadcasting one).
@@ -72,6 +80,10 @@ pub enum Message {
     /// A chunk of a file.
     /// The server sends this to the client.
     FileChunk(FileChunkData),
+
+    /// A disconnect message.
+    /// The client sends this to inform the server that it is no longer listening.
+    Disconnect(DisconnectReason),
 
 }
 

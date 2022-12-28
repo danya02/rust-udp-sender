@@ -4,13 +4,17 @@ mod pong_listener;
 mod server_state;
 mod server_state_initialization;
 mod comms;
+mod channels;
+mod download;
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
 use args::Args;
 use clap::Parser;
 
 
+
+use common::messages::{Message, DisconnectReason};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -70,11 +74,27 @@ async fn main() {
 
     // We now need to get the initial server state.
     let state = server_state_initialization::initialize_state(&mut listener, server_comm.clone()).await;
-
-
-    // Loop over packets
-    loop {
-        let (src, name, message) = listener.recv().await.unwrap();
-        println!("Received packet from {} ({}): {:?}", src, name, message);
+    // When we know what we need to download: for each file, start a download thread
+    let (download_listeners, mut listener) = crate::channels::split_by_files(listener, state.clone());
+    let mut join_handles = vec![];
+    for (file, listener) in state.files.iter().zip(download_listeners) {
+        let comm = server_comm.clone();
+        let (file, chunks) = file.clone();
+        let handle = tokio::spawn(async move {
+            // Allocate the file
+            common::filesystem::allocate(&PathBuf::from(&file.path), file.size).await.expect("Failed to allocate file");
+            download::download_file(listener, comm, file, chunks).await;
+        });
+        join_handles.push(handle);
     }
+
+    // Wait for all downloads to finish
+    for handle in join_handles {
+        handle.await.unwrap();
+    }
+
+    println!("All downloads finished!");
+    server_comm.send_message(&Message::Disconnect(DisconnectReason::Done)).await;
+
+
 }

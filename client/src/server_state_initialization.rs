@@ -22,7 +22,7 @@ pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommun
                     error!("Failed to get file listing");
                     std::process::exit(1);
                 }
-                comm.send_message(&messages::Message::FileListingRequest(0)).await;
+                comm.send_message(&messages::Message::FileListingRequest{idx: 0}).await;
             }
             Some((_, _, message)) = listener.recv() => {
                 if let messages::Message::FileListing(listing_item) = message {
@@ -44,7 +44,7 @@ pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommun
                 for (i, listing) in file_listings.iter().enumerate() {
                     if listing.is_none() {
                         debug!("Requesting file listing of file {}", i);
-                        comm.send_message(&messages::Message::FileListingRequest(i as u32)).await;
+                        comm.send_message(&messages::Message::FileListingRequest{idx: i as u32}).await;
                         requested += 1;
                         if requested > 50 {
                             debug!("Waiting for some responses before continuing");

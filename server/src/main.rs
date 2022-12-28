@@ -31,6 +31,8 @@ async fn main() {
 
     let send_port = args.send_port;
 
+    let base = PathBuf::from(args.dir);
+
     let listen_port = match args.listen_port {
         Some(port) => port,
         None => send_port,
@@ -91,7 +93,7 @@ async fn main() {
 
  
     // Construct a list of file listing fragments
-    let dir: PathBuf = args.dir.parse().unwrap();
+    let dir: PathBuf = base.clone();
     let file_listing_fragments;
     if let Some(hashlist) = args.hashlist {
         info!("Loading hashlist from {}", hashlist);
@@ -110,9 +112,7 @@ async fn main() {
         debug!("File listing collected, has {} fragments", file_listing_fragments.len());
     }
 
-    let broadcast_addrs_out = broadcast_addrs.clone();
-    let my_name_out = my_name.clone();
-    tokio::spawn(run_transmissions(listener, file_listing_fragments, broadcaster.clone()));
+    tokio::spawn(run_transmissions(listener, file_listing_fragments, broadcaster.clone(), base));
 
 
     // Loop over packets
