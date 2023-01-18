@@ -30,7 +30,7 @@ pub struct ChunkState {
 
     /// The number of chunks in the file.
     /// This is smaller than the length of the bitmap.
-    num_chunks: u64,
+    pub num_chunks: u64,
 }
 
 impl ChunkState {
@@ -78,6 +78,11 @@ impl ChunkState {
             }
         }
         None
+    }
+
+    /// Check if all chunks are downloaded.
+    pub fn is_complete(&self) -> bool {
+        self.get_zero().is_none()
     }
 }
 

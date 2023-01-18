@@ -1,8 +1,9 @@
 use std::path::PathBuf;
+use tokio::sync::mpsc::Sender;
 
 use common::{messages::{FileListingFragment, Message}, MessageReceiver};
 
-use crate::{server_state::ChunkState, comms::ServerCommunicator};
+use crate::{server_state::ChunkState, comms::ServerCommunicator, progress_indicator::ProgressEvent};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -12,9 +13,10 @@ pub async fn download_file(
     mut listener: MessageReceiver,
     comm: ServerCommunicator,
     file: FileListingFragment,
-    mut chunks: ChunkState
+    mut chunks: ChunkState,
+    progress_sender: Sender<ProgressEvent>,
 ) {
-    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(500));
+    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(5000));
     let path = PathBuf::from(&file.path);
 
     // Listen for messages containing chunks, and if the interval ticks, request the next chunk
@@ -24,8 +26,10 @@ pub async fn download_file(
                 if let Some(next_chunk) = chunks.get_zero() {
                     debug!("Requesting chunk {} for file {:?}", next_chunk, file);
                     comm.send_message(&Message::FileChunkRequest{idx: file.idx, chunk: next_chunk}).await;
+                    progress_sender.send(ProgressEvent::ChunkRequested(file.idx.into(), next_chunk)).await.expect("Failed to send progress event");
                 } else {
                     debug!("All chunks received for file {:?}!", file);
+                    progress_sender.send(ProgressEvent::FileDone(file.idx.into())).await.expect("Failed to send progress event");
                     // We need to drain the channel, otherwise it will be dropped and this will stop the download
                     common::channels::drain(listener);
                     break;
@@ -36,6 +40,16 @@ pub async fn download_file(
                     debug!("Got chunk {}-{}", chunk.idx, chunk.chunk);
                     common::filesystem::write_chunk(&path, file.chunk_size as u64, chunk.chunk, &chunk.data).await.expect("Failed to write chunk");
                     chunks.set(chunk.chunk, true);
+                    progress_sender.send(ProgressEvent::ChunkDownloaded(file.idx.into(), chunk.chunk)).await.expect("Failed to send progress event");
+
+                    // If we have all the chunks, we can stop listening
+                    if chunks.is_complete() {
+                        debug!("All chunks received for file {:?}!", file);
+                        progress_sender.send(ProgressEvent::FileDone(file.idx.into())).await.expect("Failed to send progress event");
+                        // We need to drain the channel, otherwise it will be dropped and this will stop the download
+                        common::channels::drain(listener);
+                        break;
+                    }
                 }
             }
         }

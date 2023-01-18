@@ -6,6 +6,7 @@ mod server_state_initialization;
 mod comms;
 mod channels;
 mod download;
+mod progress_indicator;
 
 use std::{net::SocketAddr, path::PathBuf};
 
@@ -17,6 +18,8 @@ use clap::Parser;
 use common::messages::{Message, DisconnectReason};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+
+use crate::progress_indicator::ProgressIndicator;
 
 
 #[tokio::main]
@@ -74,19 +77,27 @@ async fn main() {
 
     // We now need to get the initial server state.
     let state = server_state_initialization::initialize_state(&mut listener, server_comm.clone()).await;
+
+    // Initialize the progress indicator
+    let mut indicator = ProgressIndicator::new(&state);
+
+
     // When we know what we need to download: for each file, start a download thread
     let (download_listeners, _listener) = crate::channels::split_by_files(listener, state.clone());
     let mut join_handles = vec![];
     for (file, listener) in state.files.iter().zip(download_listeners) {
         let comm = server_comm.clone();
         let (file, chunks) = file.clone();
+        let progress_sender = indicator.event_tx();
         let handle = tokio::spawn(async move {
             // Allocate the file
             common::filesystem::allocate(&PathBuf::from(&file.path), file.size).await.expect("Failed to allocate file");
-            download::download_file(listener, comm, file, chunks).await;
+            download::download_file(listener, comm, file, chunks, progress_sender).await;
         });
         join_handles.push(handle);
     }
+
+    indicator.run().await.expect("Failed to download all files");
 
     // Wait for all downloads to finish
     for handle in join_handles {
