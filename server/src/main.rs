@@ -20,7 +20,7 @@ use crate::files::run_transmissions;
 async fn main() {
     env_logger::init();
     let args = Args::parse();
-    println!("{:?}", args);
+    println!("{args:?}");
 
     let my_name = match args.name {
         Some(name) => name,
@@ -40,7 +40,7 @@ async fn main() {
 
     let mut broadcast_addrs: Vec<SocketAddr> = vec![];
     for addr in args.ip.split(',') {
-        let socket_addr = format!("{}:{}", addr, send_port);
+        let socket_addr = format!("{addr}:{send_port}");
         broadcast_addrs.push(socket_addr.parse().unwrap());
 
     }
@@ -80,7 +80,7 @@ async fn main() {
     });
 
     // Respond to pings with pongs
-    let (ping_listener, mut listener) = common::channels::filter_branch_pred(listener,
+    let (ping_listener, listener) = common::channels::filter_branch_pred(listener,
         |(_, _, message)| {
             matches!(message, common::messages::Message::Ping{..})
         }, false
@@ -117,6 +117,7 @@ async fn main() {
 
     // Loop over packets
     loop {
+        std::thread::sleep(std::time::Duration::from_millis(100));
 //        let (src, name, message) = listener.recv().await.unwrap();
 //        println!("Received unknown packet from {} ({}): {:?}", src, name, message);
     }

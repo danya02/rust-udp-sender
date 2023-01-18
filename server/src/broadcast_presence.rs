@@ -1,4 +1,4 @@
-use common::networking::broadcast_message;
+
 use tokio::time::Duration;
 
 #[allow(unused_imports)]
@@ -14,7 +14,7 @@ pub fn broadcast_presence(broadcaster: broadcaster::MessageSender, my_port: u16)
     tokio::spawn(async move {
         loop {
             interval.tick().await;
-            broadcaster.send(message.clone()).await;
+            broadcaster.send(message.clone()).await.expect("Failed to send broadcast UDP");
         }
     })
 }

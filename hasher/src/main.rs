@@ -15,7 +15,7 @@ use log::{debug, error, info, trace, warn};
 async fn main() {
     env_logger::init();
     let args = Args::parse();
-    println!("{:?}", args);
+    println!("{args:?}");
 
     match args.command {
         args::Subcommand::Hash(options) => {

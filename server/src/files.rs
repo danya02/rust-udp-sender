@@ -1,5 +1,5 @@
 use std::{path::PathBuf, str::FromStr};
-use common::{MessageReceiver, messages::{FileListingFragment, Message, FileChunkData}, networking::broadcast_message};
+use common::{MessageReceiver, messages::{FileListingFragment, Message, FileChunkData}};
 use hasher::hashlist;
 
 #[allow(unused_imports)]
@@ -20,7 +20,7 @@ pub fn hashlist_into_file_listing(hashlist: hashlist::HashList) -> Vec<FileListi
             idx: idx as u32,
             total: len as u32,
             path: path.to_str().unwrap().to_string(),
-            hash: hash,
+            hash,
             size: item.size,
             chunk_size: 512,
         };
@@ -30,7 +30,7 @@ pub fn hashlist_into_file_listing(hashlist: hashlist::HashList) -> Vec<FileListi
 }
 
 pub async fn run_transmissions(
-    mut transmission_listener: MessageReceiver,
+    transmission_listener: MessageReceiver,
     directory_entries: Vec<FileListingFragment>,
     broadcaster: crate::broadcaster::MessageSender,
     base: PathBuf,
@@ -57,7 +57,7 @@ pub async fn run_transmissions(
                         debug!("Starting to transmit directory entries");
                     }
                     current_index += 1;
-                    current_index = current_index % directory_entries_out.len();
+                    current_index %= directory_entries_out.len();
                     message
                 },
                 Some((_, _, message)) = file_listing_request_listener.recv() => {
@@ -82,8 +82,8 @@ pub async fn run_transmissions(
 
     // Listen for file requests and transmit those out of order
     debug!("Starting file chunk reply thread");
-    let directory_entries_out = directory_entries.clone();
-    let broadcaster_out = broadcaster.clone();
+    let directory_entries_out = directory_entries;
+    let _broadcaster_out = broadcaster.clone();
 
     let (mut file_chunk_listener, listener) = common::channels::filter_branch_pred(listener, |msg|{
         matches!(msg.2, common::messages::Message::FileChunkRequest { .. })

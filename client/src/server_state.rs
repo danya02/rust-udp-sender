@@ -43,6 +43,7 @@ impl ChunkState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get(&self, idx: u64) -> bool {
         let u64_idx = idx / 64;
         let bit_idx = idx % 64;
@@ -80,9 +81,9 @@ impl ChunkState {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_chunk_state() {
         let mut state = ChunkState::from_file_size(100, 10);

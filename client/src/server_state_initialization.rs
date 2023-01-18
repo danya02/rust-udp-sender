@@ -68,7 +68,9 @@ pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommun
     }
 
     // Now create and return the state
-    let state = crate::server_state::ServerData {
+    
+    
+    crate::server_state::ServerData {
         files: file_listings.into_iter().map(|x| {
             // The first item is the file listing
             // The second item is the ChunkState
@@ -76,8 +78,6 @@ pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommun
             let chunk_data = crate::server_state::ChunkState::from_file_size(listing.size, listing.chunk_size);
             (listing, chunk_data)
         }).collect(),
-    };
-    
-    state
+    }
 
 }

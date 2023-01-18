@@ -23,14 +23,14 @@ use log::{debug, error, info, trace, warn};
 async fn main() {
     env_logger::init();
     let args = Args::parse();
-    println!("{:?}", args);
+    println!("{args:?}");
 
     let my_name = match args.name {
         Some(name) => name,
         None => common::make_name(),
     };
 
-    eprintln!("Starting client as {}", my_name);
+    eprintln!("Starting client as {my_name}");
 
 
     // Create a listener
@@ -63,7 +63,7 @@ async fn main() {
         }, false
     );
 
-    let my_name_out = my_name.clone();
+    let _my_name_out = my_name.clone();
     let ping_interval = std::time::Duration::from_secs(1);
     let ping_interval = tokio::time::interval(ping_interval);
     let comm = server_comm.clone();
@@ -75,7 +75,7 @@ async fn main() {
     // We now need to get the initial server state.
     let state = server_state_initialization::initialize_state(&mut listener, server_comm.clone()).await;
     // When we know what we need to download: for each file, start a download thread
-    let (download_listeners, mut listener) = crate::channels::split_by_files(listener, state.clone());
+    let (download_listeners, _listener) = crate::channels::split_by_files(listener, state.clone());
     let mut join_handles = vec![];
     for (file, listener) in state.files.iter().zip(download_listeners) {
         let comm = server_comm.clone();

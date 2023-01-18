@@ -54,7 +54,7 @@ where
 //                        eprintln!("Error decoding packet: {}", e);
 //                    }
                     Err(e) => {
-                        eprintln!("Error in: {:?}", e);
+                        eprintln!("Error in: {e:?}");
                     }
                 }
             }

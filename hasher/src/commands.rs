@@ -17,15 +17,15 @@ pub(crate) async fn make_hash(options: HashOptions) {
     let file = PathBuf::from(file);
 
 
-    println!("Hashing directory: {:?}", path);
-    println!("Will write hashlist to: {:?}", file);
+    println!("Hashing directory: {path:?}");
+    println!("Will write hashlist to: {file:?}");
 
     let (sender, handle) = walk::collect_entries();
     let path2 = path.clone();
     walk::walk_directory_and_hash(path, path2, sender).await;
     let hashlist = handle.await.expect("Failed to get hashlist from thread");
     
-    println!("Writing hashlist to: {:?}...", file);
+    println!("Writing hashlist to: {file:?}...");
     let mut file = std::fs::File::create(file).expect("Failed to create hashlist file");
     rmp_serde::encode::write_named(&mut file, &hashlist).expect("Failed to write hashlist file");
 
@@ -46,9 +46,9 @@ pub(crate) async fn verify_hash(options: VerifyOptions) {
     let file = options.file;
     let file = PathBuf::from(file).canonicalize().expect("Invalid path to hashlist file (does it exist?)");
 
-    println!("Verifying directory: {:?}", path);
+    println!("Verifying directory: {path:?}");
 
-    println!("Reading hashlist from: {:?}...", file);
+    println!("Reading hashlist from: {file:?}...");
     let hashlist: crate::hashlist::HashList = rmp_serde::from_read(std::fs::File::open(file).expect("Failed to open hashlist file")).expect("Failed to parse hashlist file");
 
     // For every entry in the hashlist, check that the file exists (unless set to ignore missing files),
@@ -66,7 +66,7 @@ pub(crate) async fn verify_hash(options: VerifyOptions) {
             if options.ignore_missing {
                 continue;
             } else {
-                print_discrepancy(&entry, &FileHashItem::nonexistent_empty_path());
+                print_discrepancy(entry, &FileHashItem::nonexistent_empty_path());
                 errors += 1;
                 continue;
             }
@@ -79,7 +79,7 @@ pub(crate) async fn verify_hash(options: VerifyOptions) {
             hash: hash.to_vec(),
         };
         if entry != &actual {
-            print_discrepancy(&entry, &actual);
+            print_discrepancy(entry, &actual);
             errors += 1;
         }
 
@@ -132,7 +132,7 @@ pub(crate) async fn verify_hash(options: VerifyOptions) {
     if errors == 0 {
         println!("No discrepancies found.");
     } else {
-        println!("Found {} discrepancies.", errors);
+        println!("Found {errors} discrepancies.");
     }
 
 

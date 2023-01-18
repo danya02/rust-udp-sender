@@ -7,7 +7,7 @@ use crate::server_state::ServerData;
 pub fn split_by_files(mut listener: MessageReceiver, data: ServerData) -> (Vec<MessageReceiver>, MessageReceiver) {
     let mut senders = vec![];
     let mut receivers = vec![];
-    for file in data.files.iter() {
+    for _file in data.files.iter() {
         let (sender, receiver) = tokio::sync::mpsc::channel(10);
         senders.push(sender);
         receivers.push(receiver);
