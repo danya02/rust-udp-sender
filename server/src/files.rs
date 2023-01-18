@@ -82,12 +82,13 @@ pub async fn run_transmissions(
 
     // Listen for file requests and transmit those out of order
     debug!("Starting file chunk reply thread");
-    let directory_entries_out = directory_entries;
-    let _broadcaster_out = broadcaster.clone();
+    let directory_entries_out = directory_entries.clone();
+    let broadcaster_out = broadcaster.clone();
 
     let (mut file_chunk_listener, listener) = common::channels::filter_branch_pred(listener, |msg|{
         matches!(msg.2, common::messages::Message::FileChunkRequest { .. })
     }, false);
+    let base_out = base.clone();
 
     tokio::spawn(async move {
         loop {
@@ -96,7 +97,7 @@ pub async fn run_transmissions(
                     Message::FileChunkRequest { idx, chunk: chunk_idx } => {
                         // If the idx is out of bounds, send the last entry
                         if idx > directory_entries_out.len().try_into().unwrap() {
-                            broadcaster.send(
+                            broadcaster_out.send(
                                 Message::FileListing(directory_entries_out.last().unwrap().clone())
                             ).await.expect("Failed to send file listing entry");
                             continue;
@@ -106,14 +107,14 @@ pub async fn run_transmissions(
                         let chunk_count = (entry.size + chunk_size - 1) / chunk_size;
                         // If the chunk_idx is out of bounds, send the last chunk
                         let chunk_idx = chunk_idx.min(chunk_count - 1);
-                        let path = base.join(&entry.path);
+                        let path = base_out.join(&entry.path);
                         let data_piece = common::filesystem::read_chunk(&path, chunk_size, chunk_idx).await.expect("Failed to read piece of file");
                         let message = Message::FileChunk ( FileChunkData{
                             idx,
                             chunk: chunk_idx,
                             data: data_piece,
                         });
-                        broadcaster.send(message).await.unwrap();
+                        broadcaster_out.send(message).await.unwrap();
 
                     },
                     _ => unreachable!(),
@@ -121,6 +122,40 @@ pub async fn run_transmissions(
             }
         }
     });
+
+    let directory_entries_out = directory_entries;
+    let base_out = base.clone();
+
+    // Also transmit unsolicited file chunks
+    tokio::spawn(async move {
+        let mut current_file_idx = 0;
+        let mut current_chunk_idx = 0;
+        loop {
+            // get chunk contents
+            let entry = &directory_entries_out[current_file_idx];
+            let chunk_size = entry.chunk_size.into();
+            let chunk_count = (entry.size + chunk_size - 1) / chunk_size;
+            let path = base_out.join(&entry.path);
+            let data_piece = common::filesystem::read_chunk(&path, chunk_size, current_chunk_idx).await.expect("Failed to read piece of file");
+            let message = Message::FileChunk ( FileChunkData{
+                idx: current_file_idx as u32,
+                chunk: current_chunk_idx,
+                data: data_piece,
+            });
+            // send chunk contents
+            broadcaster.send(message).await.unwrap();
+
+            // increment chunk (and file if necessary)
+            current_chunk_idx += 1;
+            if current_chunk_idx >= chunk_count {
+                current_chunk_idx = 0;
+                current_file_idx += 1;
+                current_file_idx %= directory_entries_out.len();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    });
+
     // Any other messages are ignored
     common::channels::drain(listener);
 
