@@ -87,6 +87,7 @@ async fn main() {
     // When we know what we need to download: for each file, start a download thread
     let (download_listeners, listener) = crate::channels::split_by_files(listener, state.clone());
     let mut join_handles = vec![];
+    let request_interval_us = args.request_interval_us;
     for (file, listener) in state.files.iter().zip(download_listeners) {
         let comm = server_comm.clone();
         let (file, chunks) = file.clone();
@@ -94,7 +95,7 @@ async fn main() {
         let handle = tokio::spawn(async move {
             // Allocate the file
             common::filesystem::allocate(&PathBuf::from(&file.path), file.size).await.expect("Failed to allocate file");
-            download::download_file(listener, comm, file, chunks, progress_sender).await;
+            download::download_file(listener, comm, file, chunks, progress_sender, request_interval_us).await;
         });
         join_handles.push(handle);
     }

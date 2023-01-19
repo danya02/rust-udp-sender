@@ -15,14 +15,24 @@ pub async fn download_file(
     file: FileListingFragment,
     mut chunks: ChunkState,
     progress_sender: Sender<ProgressEvent>,
+    request_interval_us: u64,
 ) {
-    let mut timeout = tokio::time::interval(std::time::Duration::from_millis(5000));
+    let mut timeout = if request_interval_us == 0 {
+        tokio::time::interval(std::time::Duration::from_secs(10)) // This interval will not be used
+    } else {
+        tokio::time::interval(std::time::Duration::from_micros(request_interval_us))
+    };
     let path = PathBuf::from(&file.path);
 
     // Listen for messages containing chunks, and if the interval ticks, request the next chunk
     loop {
         tokio::select! {
             _ = timeout.tick() => {
+                if request_interval_us == 0 {
+                    // This value means that we never request chunks
+                    continue;
+                }
+
                 if let Some(next_chunk) = chunks.get_zero() {
                     debug!("Requesting chunk {} for file {:?}", next_chunk, file);
                     comm.send_message(&Message::FileChunkRequest{idx: file.idx, chunk: next_chunk}).await;

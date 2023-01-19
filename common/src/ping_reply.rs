@@ -18,7 +18,7 @@ pub async fn reply_to_pings(mut ping_listener: MessageReceiver, my_name: String,
     }
 }
 
-pub async fn reply_to_pings_broadcast(mut ping_listener: MessageReceiver, my_name: String, broadcaster: mpsc::Sender<Message>) {
+pub async fn reply_to_pings_broadcast(mut ping_listener: MessageReceiver, broadcaster: mpsc::Sender<Message>) {
     loop {
         let (src, name, message) = ping_listener.recv().await.unwrap();
         if let crate::messages::Message::Ping{nonce} = message {
