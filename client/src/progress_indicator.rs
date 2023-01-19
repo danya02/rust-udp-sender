@@ -113,16 +113,9 @@ impl ProgressIndicator {
             self.stream.queue(Print('\n'))?;
         }
         self.stream.queue(MoveToPreviousLine(self.file_names.len() as u16))?;
-        for (file_idx, file) in self.file_names.iter().enumerate() {
+        for file_idx in 0..self.file_names.len() {
             self.stream.queue(Clear(ClearType::UntilNewLine))?;
-            let file_len = self.file_lengths[file_idx];
-            let first_name_part = file[..file.len().min(MAX_FILE_NAME_LEN)].to_string();
-            self.stream.queue(Print(format!("{}: ", first_name_part)))?;
-            self.stream.queue(PrintStyledContent("[".blue()))?;
-            for _ in 0..file_len {
-                self.stream.queue(Print("."))?;
-            }
-            self.stream.queue(PrintStyledContent("]".blue()))?;
+            self.print_file_progress(file_idx)?;
             self.stream.queue(MoveToNextLine(1))?;
         }
         self.stream.queue(MoveToPreviousLine(self.file_names.len() as u16 + 1))?;
@@ -132,6 +125,7 @@ impl ProgressIndicator {
 
     /// Print the first row, containing the download rate
     fn print_first_row(&mut self) -> Result<()> {
+        self.stream.queue(MoveToColumn(0))?;
         if self.downloaded_byte_counts.len() == 0 {
             self.stream.queue(Print("...stalled..."))?;
             self.stream.queue(Clear(ClearType::UntilNewLine))?;
