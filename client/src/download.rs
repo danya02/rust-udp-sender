@@ -40,7 +40,7 @@ pub async fn download_file(
                     debug!("Got chunk {}-{}", chunk.idx, chunk.chunk);
                     common::filesystem::write_chunk(&path, file.chunk_size as u64, chunk.chunk, &chunk.data).await.expect("Failed to write chunk");
                     chunks.set(chunk.chunk, true);
-                    progress_sender.send(ProgressEvent::ChunkDownloaded(file.idx.into(), chunk.chunk)).await.expect("Failed to send progress event");
+                    progress_sender.send(ProgressEvent::ChunkDownloaded(file.idx.into(), chunk.chunk, chunk.data.len())).await.expect("Failed to send progress event");
 
                     // If we have all the chunks, we can stop listening
                     if chunks.is_complete() {

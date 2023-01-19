@@ -152,7 +152,7 @@ pub async fn run_transmissions(
                 current_file_idx += 1;
                 current_file_idx %= directory_entries_out.len();
             }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         }
     });
 

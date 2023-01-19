@@ -1,3 +1,5 @@
+#![feature(is_some_and)]
+
 mod args;
 mod server_discover;
 mod pong_listener;
@@ -71,7 +73,7 @@ async fn main() {
     let ping_interval = tokio::time::interval(ping_interval);
     let comm = server_comm.clone();
     tokio::spawn(async move {
-        pong_listener::pong_listener(pong_listener, ping_interval, 5, comm).await;
+        pong_listener::pong_listener(pong_listener, ping_interval, 10, comm).await;
     });
 
 
