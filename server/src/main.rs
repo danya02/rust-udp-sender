@@ -87,8 +87,9 @@ async fn main() {
     );
 
     let my_name_out = my_name.clone();
+    let broadcaster_out = broadcaster.clone();
     tokio::spawn(async move {
-        common::ping_reply::reply_to_pings(ping_listener, my_name_out, send_port).await;
+        common::ping_reply::reply_to_pings_broadcast(ping_listener, my_name_out, broadcaster_out).await;
     });
 
  

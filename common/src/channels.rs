@@ -41,3 +41,12 @@ pub fn drain(mut from: MessageReceiver) {
         }
     });
 }
+
+/// Consume a channel, receive messages in a loop, and discard them, printing them to stdout.
+pub fn drain_with_print(mut from: MessageReceiver) {
+    tokio::spawn(async move {
+        while let Some(msg) = from.recv().await {
+            println!("Discarding: {:?}", msg);
+        }
+    });
+}

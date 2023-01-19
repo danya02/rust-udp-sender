@@ -85,7 +85,7 @@ async fn main() {
 
 
     // When we know what we need to download: for each file, start a download thread
-    let (download_listeners, _listener) = crate::channels::split_by_files(listener, state.clone());
+    let (download_listeners, listener) = crate::channels::split_by_files(listener, state.clone());
     let mut join_handles = vec![];
     for (file, listener) in state.files.iter().zip(download_listeners) {
         let comm = server_comm.clone();
@@ -98,6 +98,9 @@ async fn main() {
         });
         join_handles.push(handle);
     }
+
+    //common::channels::drain_with_print(listener);
+    common::channels::drain(listener); // Collects Announce and FileListing
 
     indicator.run().await.expect("Failed to download all files");
 
