@@ -1,6 +1,6 @@
-use crc::Crc;
+use sha2::Digest;
 
-use crate::{messages::Message, DecodeError};
+use crate::{messages::Message, DecodeError, HashType};
 
 /// Convenience functions for working with magic over the network.
 
@@ -67,16 +67,19 @@ pub fn parse_magic(data: &[u8]) -> Result<(String, &[u8]), MagicError> {
     }
 
     // Hash the data
-    let crc = Crc::<u32>::new(&crc::CRC_32_CKSUM);
-    let mut hasher = crc.digest();
-    hasher.update(data);
-    let hash2 = hasher.finalize();
-    let hash2 = hash2.to_be_bytes();
+    let hash2 = make_hash(data);
     if hash != hash2.as_slice() {
         return Err(MagicError::HashMismatch);
     }
 
     Ok((name, data))
+}
+
+fn make_hash(data: &[u8]) -> HashType {
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(data);
+    let hash = hasher.finalize();
+    hash[..].try_into().unwrap()
 }
 
 /// Make a packet with the magic prefix from the given message
@@ -92,11 +95,8 @@ pub fn make_magic_packet(name: &str, data: &Message) -> Vec<u8> {
     // Length
     packet.extend((data.len() as u16).to_be_bytes().iter());
     // Hash
-    let crc = Crc::<u32>::new(&crc::CRC_32_CKSUM);
-    let mut hasher = crc.digest();
-    hasher.update(&data);
-    let hash = hasher.finalize();
-    packet.extend(hash.to_be_bytes());
+    let hash = make_hash(&data);
+    packet.extend(hash);
     // Data
     packet.extend(data);
     packet

@@ -9,6 +9,14 @@ edition = "2021"
 name = "channel-bench"
 path = "src/channel-bench.rs"
 
+[[bin]]
+name = "udp-bandwidth-test-server"
+path = "src/udp-bandwidth-test-server.rs"
+
+[[bin]]
+name = "udp-bandwidth-test-client"
+path = "src/udp-bandwidth-test-client.rs"
+
 
 
 [dependencies]

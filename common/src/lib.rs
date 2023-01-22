@@ -12,7 +12,7 @@ use crate::messages::Message;
 type DecodeError = rmp_serde::decode::Error;
 pub type MessageGroup = (SocketAddr, String, Message);
 pub type MessageReceiver = tokio::sync::mpsc::Receiver<MessageGroup>;
-pub type HashType = [u8; 4]; // CRC32
+pub type HashType = [u8; 32]; // sha256
 
 /// Make a random name for an object.
 ///
