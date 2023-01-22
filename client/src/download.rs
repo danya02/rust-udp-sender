@@ -1,13 +1,17 @@
 use std::path::PathBuf;
 use tokio::sync::mpsc::Sender;
 
-use common::{messages::{FileListingFragment, Message}, MessageReceiver};
+use common::{
+    messages::{FileListingFragment, Message},
+    MessageReceiver,
+};
 
-use crate::{server_state::ChunkState, comms::ServerCommunicator, progress_indicator::ProgressEvent};
+use crate::{
+    comms::ServerCommunicator, progress_indicator::ProgressEvent, server_state::ChunkState,
+};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
 
 pub async fn download_file(
     mut listener: MessageReceiver,

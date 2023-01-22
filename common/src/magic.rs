@@ -1,5 +1,6 @@
+use crc::Crc;
+
 use crate::{messages::Message, DecodeError};
-use sha2::Digest;
 
 /// Convenience functions for working with magic over the network.
 
@@ -12,7 +13,7 @@ pub enum MagicError {
     /// This is not a valid magic prefix.
     /// This probably means that the packet is not intended for us, do not say anything.
     InvalidMagic,
-    
+
     /// The version of the protocol does not match.
     /// The value included is their version.
     /// You might want a warning upon seeing this.
@@ -29,7 +30,6 @@ pub enum MagicError {
 
     /// The magic prefix was valid, but the packet was otherwise invalid.
     DecodeError(DecodeError),
-
 }
 
 /// Extract the contents of a packet, stripping the magic prefix.
@@ -67,9 +67,11 @@ pub fn parse_magic(data: &[u8]) -> Result<(String, &[u8]), MagicError> {
     }
 
     // Hash the data
-    let mut hasher = sha2::Sha256::new();
+    let crc = Crc::<u32>::new(&crc::CRC_32_CKSUM);
+    let mut hasher = crc.digest();
     hasher.update(data);
     let hash2 = hasher.finalize();
+    let hash2 = hash2.to_be_bytes();
     if hash != hash2.as_slice() {
         return Err(MagicError::HashMismatch);
     }
@@ -79,7 +81,6 @@ pub fn parse_magic(data: &[u8]) -> Result<(String, &[u8]), MagicError> {
 
 /// Make a packet with the magic prefix from the given message
 pub fn make_magic_packet(name: &str, data: &Message) -> Vec<u8> {
-
     let data = data.serialize();
 
     let mut packet = Vec::new();
@@ -91,10 +92,11 @@ pub fn make_magic_packet(name: &str, data: &Message) -> Vec<u8> {
     // Length
     packet.extend((data.len() as u16).to_be_bytes().iter());
     // Hash
-    let mut hasher = sha2::Sha256::new();
+    let crc = Crc::<u32>::new(&crc::CRC_32_CKSUM);
+    let mut hasher = crc.digest();
     hasher.update(&data);
     let hash = hasher.finalize();
-    packet.extend(hash.as_slice());
+    packet.extend(hash.to_be_bytes());
     // Data
     packet.extend(data);
     packet

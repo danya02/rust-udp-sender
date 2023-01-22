@@ -1,17 +1,15 @@
 /// Functions to deal with UDP transmissions.
-/// 
+///
 /// This module contains functions to send and receive UDP packets.
-/// 
+///
 /// Uses tokio for async I/O.
-
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 
-use crate::{messages::Message, magic::parse_magic_packet, MessageReceiver};
+use crate::{magic::parse_magic_packet, messages::Message, MessageReceiver};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
 
 /// Send a UDP packet to a given address.
 pub async fn send_packet(addr: SocketAddr, data: &[u8]) -> Result<(), std::io::Error> {
@@ -38,7 +36,7 @@ where
             loop {
                 let mut buf = [0; 1024];
                 let (amt, src) = socket.recv_from(&mut buf).await.unwrap();
-                
+
                 let data = &buf[..amt];
                 let maybe_magic_decoded = parse_magic_packet(data);
                 match maybe_magic_decoded {
@@ -47,12 +45,12 @@ where
                             continue;
                         }
                         tx.send((src, name, message)).await.unwrap();
-                    },
-//                    Err(MagicError::InvalidMagic) => {}, // Ignore
-//                    Err(MagicError::InvalidVersion(v)) => {}, // Ignore
-//                    Err(MagicError::DecodeError(e)) => {
-//                        eprintln!("Error decoding packet: {}", e);
-//                    }
+                    }
+                    //                    Err(MagicError::InvalidMagic) => {}, // Ignore
+                    //                    Err(MagicError::InvalidVersion(v)) => {}, // Ignore
+                    //                    Err(MagicError::DecodeError(e)) => {
+                    //                        eprintln!("Error decoding packet: {}", e);
+                    //                    }
                     Err(e) => {
                         eprintln!("Error in: {e:?}");
                     }
@@ -64,10 +62,9 @@ where
 }
 
 /// Broadcast a packet to a list of addresses.
-pub async fn broadcast_packet(addrs: &[SocketAddr], data: &[u8]) -> Result<(), std::io::Error> {
-    let socket = UdpSocket::bind("0.0.0.0:0").await?;
-    socket.set_broadcast(true)?;
-
+/// 
+/// The given `socket` must have `set_broadcast(true)` called on it.
+pub async fn broadcast_packet(socket: &UdpSocket, addrs: &[SocketAddr], data: &[u8]) -> Result<(), std::io::Error> {
     for addr in addrs {
         socket.send_to(data, addr).await?;
     }
@@ -75,13 +72,24 @@ pub async fn broadcast_packet(addrs: &[SocketAddr], data: &[u8]) -> Result<(), s
 }
 
 /// Broadcast a message to a list of addresses.
-pub async fn broadcast_message(addrs: &[SocketAddr], my_name: &str, message: &Message) -> Result<(), std::io::Error> {
+/// 
+/// The given `socket` must have `set_broadcast(true)` called on it.
+pub async fn broadcast_message(
+    socket: &UdpSocket,
+    addrs: &[SocketAddr],
+    my_name: &str,
+    message: &Message,
+) -> Result<(), std::io::Error> {
     let data = crate::magic::make_magic_packet(my_name, message);
-    broadcast_packet(addrs, &data).await
+    broadcast_packet(socket, addrs, &data).await
 }
 
 /// Send a message to a given address.
-pub async fn send_message(addr: SocketAddr, my_name: &str, message: &Message) -> Result<(), std::io::Error> {
+pub async fn send_message(
+    addr: SocketAddr,
+    my_name: &str,
+    message: &Message,
+) -> Result<(), std::io::Error> {
     let data = crate::magic::make_magic_packet(my_name, message);
     send_packet(addr, &data).await
 }

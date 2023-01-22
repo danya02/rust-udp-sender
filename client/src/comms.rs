@@ -20,6 +20,8 @@ impl ServerCommunicator {
 
     /// Send a message to the server
     pub async fn send_message(&self, message: &Message) {
-        send_message(self.addr, &self.my_name, message).await.expect("Error while sending message to server over UDP");
+        send_message(self.addr, &self.my_name, message)
+            .await
+            .expect("Error while sending message to server over UDP");
     }
 }

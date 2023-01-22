@@ -22,7 +22,7 @@ pub(crate) struct HashOptions {
     #[clap(short, long)]
     pub path: Option<String>,
 
-    /// File to write the hashlist to 
+    /// File to write the hashlist to
     #[clap(short, long)]
     pub file: String,
 }

@@ -1,13 +1,15 @@
-use common::{MessageReceiver, messages};
+use common::{messages, MessageReceiver};
 
 use crate::comms::ServerCommunicator;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-
 /// Function to talk to the server to initialize the state.
-pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommunicator) -> crate::server_state::ServerData {
+pub async fn initialize_state(
+    listener: &mut MessageReceiver,
+    comm: ServerCommunicator,
+) -> crate::server_state::ServerData {
     let mut timeout = tokio::time::interval(std::time::Duration::from_millis(500));
     // First, we need to figure out how many files there are
     // If we see a FileListing, we can figure it out, otherwise we need to request it
@@ -36,7 +38,7 @@ pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommun
 
     // Now we need to get all the file listings
     let mut file_listings = vec![None; num_files as usize];
-    loop { 
+    loop {
         tokio::select! {
             // If we don't get any file listings for a while, request them again
             _ = timeout.tick() => {
@@ -68,16 +70,20 @@ pub async fn initialize_state(listener: &mut MessageReceiver, comm: ServerCommun
     }
 
     // Now create and return the state
-    
-    
-    crate::server_state::ServerData {
-        files: file_listings.into_iter().map(|x| {
-            // The first item is the file listing
-            // The second item is the ChunkState
-            let listing = x.unwrap();
-            let chunk_data = crate::server_state::ChunkState::from_file_size(listing.size, listing.chunk_size);
-            (listing, chunk_data)
-        }).collect(),
-    }
 
+    crate::server_state::ServerData {
+        files: file_listings
+            .into_iter()
+            .map(|x| {
+                // The first item is the file listing
+                // The second item is the ChunkState
+                let listing = x.unwrap();
+                let chunk_data = crate::server_state::ChunkState::from_file_size(
+                    listing.size,
+                    listing.chunk_size,
+                );
+                (listing, chunk_data)
+            })
+            .collect(),
+    }
 }

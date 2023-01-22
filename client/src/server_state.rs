@@ -2,28 +2,26 @@ use common::messages::FileListingFragment;
 
 /// Data structures representing synched state between the server and the client
 
-
 #[derive(Debug, Clone)]
 pub struct ServerData {
     /// The files that the server has, as well as our download state.
-    /// 
+    ///
     /// The first element is the file listing fragment, which contains the file name, size and hash
     /// of the file.
     /// The second element is the ChunkState,
     /// which contains information about which chunks of the file are okay.
     pub files: Vec<(FileListingFragment, ChunkState)>,
-
 }
 
 /// The state of the chunks of a file, packed into a bitmap.
 #[derive(Debug, Clone)]
 pub struct ChunkState {
     /// The bitmap of which chunks have been downloaded.
-    /// 
+    ///
     /// The bits are packed into u64s, so the bitmap is `num_chunks / 64` u64s long.
-    /// 
+    ///
     /// The least significant bit of the first u64 is the first chunk, and so on.
-    /// 
+    ///
     /// If the number of chunks is not a multiple of 64, the last u64 will have
     /// some unused bits at the end.
     bitmap: Vec<u64>,
@@ -64,12 +62,15 @@ impl ChunkState {
     /// Find the first chunk that is not downloaded.
     pub fn get_zero(&self) -> Option<u64> {
         for (i, &u64) in self.bitmap.iter().enumerate() {
-            if u64 != !0 { // if not all bits are set
-                for j in 0..64 { // find the first bit that is not set
+            if u64 != !0 {
+                // if not all bits are set
+                for j in 0..64 {
+                    // find the first bit that is not set
                     let mask = 1 << j;
                     if u64 & mask == 0 {
                         let idx = (i as u64) * 64 + j;
-                        if idx >= self.num_chunks { // if the index is out of bounds
+                        if idx >= self.num_chunks {
+                            // if the index is out of bounds
                             return None;
                         }
                         return Some((i as u64) * 64 + j);
@@ -100,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_zero(){
+    fn test_get_zero() {
         let mut state = ChunkState::from_file_size(100, 10);
         assert_eq!(state.get_zero(), Some(0));
         state.set(0, true);

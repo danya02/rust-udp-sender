@@ -1,10 +1,12 @@
-use std::{path::PathBuf, str::FromStr};
-use common::{MessageReceiver, messages::{FileListingFragment, Message, FileChunkData}};
+use common::{
+    messages::{FileChunkData, FileListingFragment, Message},
+    MessageReceiver,
+};
 use hasher::hashlist;
+use std::{path::PathBuf, str::FromStr};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
 
 /// Code that deals with files and file transfers.
 
@@ -33,22 +35,25 @@ pub async fn run_transmissions(
     transmission_listener: MessageReceiver,
     directory_entries: Vec<FileListingFragment>,
     broadcaster: crate::broadcaster::MessageSender,
+    vip_broadcaster: crate::broadcaster::MessageSender,
     base: PathBuf,
 ) {
     // Transmit all the directory entries over a period of 5 seconds
     // Also listen for file requests and transmit those out of order
     debug!("Starting file listing transmission thread");
-    let (mut file_listing_request_listener, listener) = common::channels::filter_branch_pred(transmission_listener, |msg|{
-        matches!(msg.2, common::messages::Message::FileListingRequest { .. })
-    }, false);
+    let (mut file_listing_request_listener, listener) = common::channels::filter_branch_pred(
+        transmission_listener,
+        |msg| matches!(msg.2, common::messages::Message::FileListingRequest { .. }),
+        false,
+    );
 
     let single_entry_duration = std::time::Duration::from_secs(5) / directory_entries.len() as u32;
     let directory_entries_out = directory_entries.clone();
-    let broadcaster_out = broadcaster.clone();
+    let broadcaster_out = vip_broadcaster.clone(); // File listings are sent to the VIP broadcaster
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(single_entry_duration);
         let mut current_index = 0;
-        loop { 
+        loop {
             let message = tokio::select! {
                 _ = interval.tick() => {
                     let entry = &directory_entries_out[current_index];
@@ -85,21 +90,30 @@ pub async fn run_transmissions(
     let directory_entries_out = directory_entries.clone();
     let broadcaster_out = broadcaster.clone();
 
-    let (mut file_chunk_listener, listener) = common::channels::filter_branch_pred(listener, |msg|{
-        matches!(msg.2, common::messages::Message::FileChunkRequest { .. })
-    }, false);
+    let (mut file_chunk_listener, listener) = common::channels::filter_branch_pred(
+        listener,
+        |msg| matches!(msg.2, common::messages::Message::FileChunkRequest { .. }),
+        false,
+    );
     let base_out = base.clone();
 
     tokio::spawn(async move {
+        let mut mmaps = std::collections::HashMap::new();
         loop {
             while let Some((_, _, message)) = file_chunk_listener.recv().await {
                 match message {
-                    Message::FileChunkRequest { idx, chunk: chunk_idx } => {
+                    Message::FileChunkRequest {
+                        idx,
+                        chunk: chunk_idx,
+                    } => {
                         // If the idx is out of bounds, send the last entry
                         if idx > directory_entries_out.len().try_into().unwrap() {
-                            broadcaster_out.send(
-                                Message::FileListing(directory_entries_out.last().unwrap().clone())
-                            ).await.expect("Failed to send file listing entry");
+                            broadcaster_out
+                                .send(Message::FileListing(
+                                    directory_entries_out.last().unwrap().clone(),
+                                ))
+                                .await
+                                .expect("Failed to send file listing entry");
                             continue;
                         }
                         let entry = &directory_entries_out[idx as usize];
@@ -108,15 +122,17 @@ pub async fn run_transmissions(
                         // If the chunk_idx is out of bounds, send the last chunk
                         let chunk_idx = chunk_idx.min(chunk_count - 1);
                         let path = base_out.join(&entry.path);
-                        let data_piece = common::filesystem::read_chunk(&path, chunk_size, chunk_idx).await.expect("Failed to read piece of file");
-                        let message = Message::FileChunk ( FileChunkData{
+                        let data_piece =
+                            common::filesystem::read_chunk(&path, chunk_size, chunk_idx, &mut mmaps)
+                                .await
+                                .expect("Failed to read piece of file");
+                        let message = Message::FileChunk(FileChunkData {
                             idx,
                             chunk: chunk_idx,
                             data: data_piece,
                         });
                         broadcaster_out.send(message).await.unwrap();
-
-                    },
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -130,14 +146,21 @@ pub async fn run_transmissions(
     tokio::spawn(async move {
         let mut current_file_idx = 0;
         let mut current_chunk_idx = 0;
+        let mut mmaps = std::collections::HashMap::new();
+        // TODO: one set of mmaps is created for requests,
+        // and another set is created for unsolicited chunks.
+        // Perhaps we can share the same set of mmaps?
+        // Requires locking: maybe too slow?
         loop {
             // get chunk contents
             let entry = &directory_entries_out[current_file_idx];
             let chunk_size = entry.chunk_size.into();
             let chunk_count = (entry.size + chunk_size - 1) / chunk_size;
             let path = base_out.join(&entry.path);
-            let data_piece = common::filesystem::read_chunk(&path, chunk_size, current_chunk_idx).await.expect("Failed to read piece of file");
-            let message = Message::FileChunk ( FileChunkData{
+            let data_piece = common::filesystem::read_chunk(&path, chunk_size, current_chunk_idx, &mut mmaps)
+                .await
+                .expect("Failed to read piece of file");
+            let message = Message::FileChunk(FileChunkData {
                 idx: current_file_idx as u32,
                 chunk: current_chunk_idx,
                 data: data_piece,
@@ -152,12 +175,10 @@ pub async fn run_transmissions(
                 current_file_idx += 1;
                 current_file_idx %= directory_entries_out.len();
             }
-            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+            //tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         }
     });
 
     // Any other messages are ignored
     common::channels::drain(listener);
-
-
 }

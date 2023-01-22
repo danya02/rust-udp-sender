@@ -1,10 +1,13 @@
-use common::{MessageReceiver, messages::Message};
+use common::{messages::Message, MessageReceiver};
 
 use crate::server_state::ServerData;
 /// Split a message receiver into many.
 /// Each of them will only receive messages corresponding to one of the given files.
 /// An extra receiver is returned, which will receive all messages that don't correspond to any of the given files.
-pub fn split_by_files(mut listener: MessageReceiver, data: ServerData) -> (Vec<MessageReceiver>, MessageReceiver) {
+pub fn split_by_files(
+    mut listener: MessageReceiver,
+    data: ServerData,
+) -> (Vec<MessageReceiver>, MessageReceiver) {
     let mut senders = vec![];
     let mut receivers = vec![];
     for _file in data.files.iter() {
@@ -32,10 +35,10 @@ pub fn split_by_files(mut listener: MessageReceiver, data: ServerData) -> (Vec<M
                         }
                     };
                     send_to.send((src, name, message)).await.unwrap();
-                },
+                }
                 _ => {
                     extra_sender.send((src, name, message)).await.unwrap();
-                },
+                }
             }
         }
     });

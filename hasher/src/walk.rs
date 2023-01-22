@@ -1,18 +1,14 @@
 use async_recursion::async_recursion;
 /// Module for walking a directory and hashing its contents.
-
 use sha2::Digest;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
-use tokio::{sync::mpsc::Sender, task::JoinHandle, io::AsyncReadExt};
+use tokio::{io::AsyncReadExt, sync::mpsc::Sender, task::JoinHandle};
 
-use crate::hashlist::{HashList, FileHashItem};
-
+use crate::hashlist::{FileHashItem, HashList};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
-
 
 /// Create a thread that listens for messages containing directory entries,
 /// stores them, and returns when the list is complete.
@@ -33,7 +29,9 @@ pub fn collect_entries() -> (Sender<FileHashItem>, JoinHandle<HashList>) {
 
 /// Get the Sha256 hash of a file.
 pub async fn get_file_hash(path: impl AsRef<Path>) -> [u8; 32] {
-    let mut file = tokio::fs::File::open(path).await.expect("Unable to open file");
+    let mut file = tokio::fs::File::open(path)
+        .await
+        .expect("Unable to open file");
     let mut hasher = sha2::Sha256::new();
     let mut buf = [0; 1024];
 
@@ -50,20 +48,17 @@ pub async fn get_file_hash(path: impl AsRef<Path>) -> [u8; 32] {
     hash
 }
 
-
 /// Walk a directory.
 /// For subdirectories, spawn a new thread to walk them.
 /// For files, hash them and send the result to the main thread.
-/// 
+///
 /// For the initial invocation, both the `path` and the `base` should be the same.
 #[async_recursion]
-pub async fn walk_directory_and_hash(
-    path: PathBuf,
-    base: PathBuf,
-    sender: Sender<FileHashItem>,
-) {
+pub async fn walk_directory_and_hash(path: PathBuf, base: PathBuf, sender: Sender<FileHashItem>) {
     let mut pending_inner_tasks = vec![];
-    let mut dir_listing = tokio::fs::read_dir(&path).await.expect("Failed to read directory");
+    let mut dir_listing = tokio::fs::read_dir(&path)
+        .await
+        .expect("Failed to read directory");
 
     while let Ok(entry) = dir_listing.next_entry().await {
         if let Some(entry) = entry {
@@ -76,12 +71,16 @@ pub async fn walk_directory_and_hash(
                 let base_copy = base.clone();
                 let handle = tokio::spawn(walk_directory_and_hash(path, base_copy, sender_copy));
                 pending_inner_tasks.push(handle);
-
             } else {
                 debug!("Found file: {:?}", path);
                 let file_size = tokio::fs::metadata(&path).await.unwrap().len();
                 let item = FileHashItem {
-                    path: path.strip_prefix(base.clone()).unwrap().to_str().unwrap().to_string(),
+                    path: path
+                        .strip_prefix(base.clone())
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
                     size: file_size,
                     hash: get_file_hash(&path).await.to_vec(),
                 };

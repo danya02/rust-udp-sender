@@ -1,8 +1,7 @@
 /// Module for network messages
+use serde::{Deserialize, Serialize};
 
-use serde::{Serialize, Deserialize};
-
-use crate::{DecodeError, HashType};
+use crate::DecodeError;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum JoinReason {
@@ -22,7 +21,7 @@ pub enum DisconnectReason {
 #[serde(tag = "type")]
 pub enum Message {
     /// Broadcasted by a server to announce its presence.
-    /// 
+    ///
     /// The IP address is implied by the UDP packet.
     /// The port is used by clients to talk back to the server.
     Announce {
@@ -31,21 +30,23 @@ pub enum Message {
     },
 
     /// A request by the client to join a server.
-    /// 
+    ///
     /// The IP address is implied by the UDP packet.
     /// The port is implied: it is the port that the server used to reach the client.
-    JoinQuery {
-    },
+    JoinQuery {},
 
     /// A response to a `JoinQuery`.
     JoinResponse(JoinReason),
-
-
 
     /// A ping request. Whoever sends this expects a `Pong` in response.
     Ping {
         /// Random number to identify this ping.
         nonce: u64,
+        /// The number of messages that the peer received from the other peer
+        /// since the last time that the peer sent a `Ping`.
+        /// The other peer should compare this to the number of messages that it sent,
+        /// and adjust its rate-limiting accordingly.
+        recvs: u64,
     },
 
     /// A response to a `Ping`.
@@ -61,9 +62,7 @@ pub enum Message {
     /// A request by the client to repeat sending a `FileListingFragment`.
     /// The value is the index of the fragment to repeat.
     /// If the index is out of range, the server can send any of the fragments.
-    FileListingRequest{
-        idx: u32,
-    },
+    FileListingRequest { idx: u32 },
 
     /// A request to retrieve a chunk of a file.
     /// The server responds with a `FileChunk` message (probably a broadcasting one).
@@ -84,7 +83,6 @@ pub enum Message {
     /// A disconnect message.
     /// The client sends this to inform the server that it is no longer listening.
     Disconnect(DisconnectReason),
-
 }
 
 impl Message {
@@ -108,9 +106,9 @@ pub struct FileListingFragment {
     /// The path of the file.
     pub path: String,
     /// The size of the file in bytes.
-    pub size: u64, // 16 exabytes 
+    pub size: u64, // 16 exabytes
     /// The SHA-256 hash of the file.
-    pub hash: HashType,
+    pub hash: [u8; 32],
     /// The size of chunks that the file is split into.
     pub chunk_size: u16, // Up to 64KB (jumbo packet size)
 }

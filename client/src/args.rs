@@ -6,7 +6,7 @@ pub(crate) struct Args {
     #[clap(short, long, default_value_t = 1337)]
     pub port: u16,
 
-    /// IP addresses to bind to 
+    /// IP addresses to bind to
     #[clap(short, long, default_value = "0.0.0.0")]
     pub ip: String,
 
@@ -21,6 +21,6 @@ pub(crate) struct Args {
     /// Request a new file chunk that we're missing every N microseconds.
     /// This value is per file: if you have 10 files, and this value is 1000000, you will request 10 chunks per second.
     /// If set to 0, will not request any chunks, and will only rely on broadcasted chunks.
-    #[clap(short, long, default_value_t = 10000)]
+    #[clap(short, long, default_value_t = 10000000)]
     pub request_interval_us: u64,
 }

@@ -1,15 +1,13 @@
-pub mod hashlist;
 mod args;
 mod commands;
+pub mod hashlist;
 mod walk;
 
 use args::Args;
 use clap::Parser;
 
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
 
 #[tokio::main]
 async fn main() {
@@ -20,9 +18,9 @@ async fn main() {
     match args.command {
         args::Subcommand::Hash(options) => {
             commands::make_hash(options).await;
-        },
+        }
         args::Subcommand::Verify(options) => {
             commands::verify_hash(options).await;
-        },
+        }
     }
 }
