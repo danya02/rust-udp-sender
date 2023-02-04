@@ -21,4 +21,4 @@ path = "src/udp-bandwidth-test-client.rs"
 
 [dependencies]
 common = { path = "../common" }
-tokio = { version = "1.23", features = ["full"] }
+tokio = { version = "1.24", features = ["full"] }
